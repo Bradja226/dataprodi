@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 
 KET = "Keketatan 2025 (%)"
+MAPEL = ["Mapel Pendukung 1", "Mapel Pendukung 2", "Mapel Pendukung 3"]
 
 
 @st.cache_data
@@ -23,6 +24,8 @@ def main():
         q = st.text_input("Cari prodi")
         ptn = st.multiselect("PTN", sorted(df["PTN"].unique()))
         jen = st.multiselect("Jenjang", sorted(df["Jenjang"].unique()))
+        mapel_opsi = sorted(set(df[MAPEL].stack()))
+        pm = st.multiselect("Mapel pendukung", mapel_opsi, help="Tampilkan prodi yang memakai salah satu mapel ini.")
         baru = st.selectbox("Prodi baru 2026", ["Semua", "Ya", "Tidak"])
         porto = st.selectbox("Portofolio", ["Semua"] + sorted(df["Portofolio"].unique()))
         kelas = st.selectbox("Keketatan 2025", ["Semua", "Sangat ketat (< 10%)", "Ketat (10-20%)",
@@ -35,6 +38,8 @@ def main():
         f = f[f["PTN"].isin(ptn)]
     if jen:
         f = f[f["Jenjang"].isin(jen)]
+    if pm:
+        f = f[f[MAPEL].isin(pm).any(axis=1)]
     if baru != "Semua":
         f = f[f["Prodi Baru 2026"] == baru]
     if porto != "Semua":
@@ -53,7 +58,7 @@ def main():
     c[2].metric("Median keketatan 2025", "-" if pd.isna(med) else f"{med:.1f}%")
     c[3].metric("Selisih daya tampung 2026 vs 2025", "-" if selisih is None else f"{selisih:+,}".replace(",", "."))
 
-    g1, g2 = st.columns(2)
+    g1, g2, g3 = st.columns(3)
     with g1:
         st.subheader("Sebaran keketatan 2025")
         bins = pd.cut(f[KET].dropna().clip(upper=99.99), bins=list(range(0, 101, 10)), right=False, include_lowest=True)
@@ -65,6 +70,10 @@ def main():
         top = f.dropna(subset=[KET]).nsmallest(10, KET)
         top = top.assign(Label=top["Program Studi"] + " | " + top["PTN"])
         st.bar_chart(top.set_index("Label")[KET], horizontal=True, x_label="Keketatan (%)", y_label="")
+    with g3:
+        st.subheader("Mapel pendukung terbanyak")
+        cnt = f[MAPEL].stack().value_counts().head(10)
+        st.bar_chart(cnt, horizontal=True, x_label="Jumlah prodi", y_label="")
 
     st.subheader("Daftar prodi")
     st.dataframe(f.sort_values(KET, na_position="last"), hide_index=True, use_container_width=True, height=420,
