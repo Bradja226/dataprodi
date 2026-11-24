@@ -10,7 +10,13 @@ MAPEL = ["Mapel Pendukung 1", "Mapel Pendukung 2", "Mapel Pendukung 3"]
 
 @st.cache_data
 def load() -> pd.DataFrame:
-    return pd.read_csv(Path(__file__).parent / "data_prodi.csv")
+    d = pd.read_csv(Path(__file__).parent / "data_prodi.csv")
+    return d.drop(columns=["Alumni Jurusan"], errors="ignore")
+
+
+def semua_mapel(d: pd.DataFrame) -> pd.Series:
+    """Gabungan ketiga kolom mapel tanpa nilai kosong (aman untuk pandas versi lama dan baru)."""
+    return pd.concat([d[c] for c in MAPEL], ignore_index=True).dropna().astype(str)
 
 
 def main():
@@ -24,7 +30,7 @@ def main():
         q = st.text_input("Cari prodi")
         ptn = st.multiselect("PTN", sorted(df["PTN"].unique()))
         jen = st.multiselect("Jenjang", sorted(df["Jenjang"].unique()))
-        mapel_opsi = sorted(set(df[MAPEL].stack()))
+        mapel_opsi = sorted(semua_mapel(df).unique())
         pm = st.multiselect("Mapel pendukung", mapel_opsi, help="Tampilkan prodi yang memakai salah satu mapel ini.")
         baru = st.selectbox("Prodi baru 2026", ["Semua", "Ya", "Tidak"])
         porto = st.selectbox("Portofolio", ["Semua"] + sorted(df["Portofolio"].unique()))
@@ -72,7 +78,7 @@ def main():
         st.bar_chart(top.set_index("Label")[KET], horizontal=True, x_label="Keketatan (%)", y_label="")
     with g3:
         st.subheader("Mapel pendukung terbanyak")
-        cnt = f[MAPEL].stack().value_counts().head(10)
+        cnt = semua_mapel(f).value_counts().head(10)
         st.bar_chart(cnt, horizontal=True, x_label="Jumlah prodi", y_label="")
 
     st.subheader("Daftar prodi")
